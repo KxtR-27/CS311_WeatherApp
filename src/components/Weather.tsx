@@ -11,7 +11,7 @@ import humidity_icon from "../assets/humidity.png";
 import { useEffect } from "react";
 
 const Weather = () => {
-	const search = async (city) => {
+	const search = async (city: String) => {
 		try {
 			const url = `https://api.openweathermap.org/data/2.5/weather?q=${city},US&units=imperial&appid=${import.meta.env.VITE_APP_ID}`;
 			const response = await fetch(url);
