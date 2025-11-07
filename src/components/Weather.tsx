@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { RefObject, useEffect, useRef, useState } from "react";
 
 import "./Weather.css";
 
@@ -11,7 +11,19 @@ import snow_icon from "../assets/snow.png";
 import wind_icon from "../assets/wind.png";
 import humidity_icon from "../assets/humidity.png";
 
+interface WeatherData {
+	main: { humidity: string; temp: string };
+	wind: { speed: string };
+	name: string;
+	weather: { icon: string }[];
+}
+
 const Weather = () => {
+	/* Official React documentation clarifies the following declaration as "built-in support"
+	 * see https://react.dev/reference/react/useRef#manipulating-the-dom-with-a-ref
+	 *
+	 * @ts-expect-error */
+	const inputRef: RefObject<HTMLInputElement> = useRef(null);
 	const [weatherData, setWeatherData]: any = useState(false);
 
 	const allIcons = {
@@ -31,21 +43,33 @@ const Weather = () => {
 		"13n": snow_icon,
 	};
 
-	const search = async (city: String) => {
+	const search = async (city: string) => {
+		if (city === "") {
+			inputRef.current.setCustomValidity("Enter City Name");
+			inputRef.current.reportValidity();
+			inputRef.current.setCustomValidity("");
+			return;
+		}
 		try {
 			const url = `https://api.openweathermap.org/data/2.5/weather?q=${city},US&units=imperial&appid=${
 				import.meta.env.VITE_APP_ID
 			}`;
-			const response = await fetch(url);
-			const data = await response.json();
 
+			const response = await fetch(url);
+			const data: WeatherData = await response.json();
 			console.log(data);
 
-			// @ts-ignore - Not sure how to type a PNG import
-			const icon: any = allIcons[data.weather[0].icon] || clear_icon;
+			if (!response.ok) {
+				inputRef.current.setCustomValidity("City Not Found");
+				inputRef.current.reportValidity();
+				inputRef.current.setCustomValidity("");
+				return;
+			}
+
+			// @ts-expect-error - honestly I've tried so many ways to type it, to no avail
+			const icon = allIcons[data.weather[0].icon] || clear_icon;
 
 			setWeatherData({
-				// @ts-ignore - making JSON data type-safe is quite tedious
 				humidity: data.main.humidity,
 				windSpeed: data.wind.speed,
 				temperature: data.main.temp,
@@ -64,30 +88,35 @@ const Weather = () => {
 	return (
 		<div className="weather">
 			<div className="search-bar">
-				<input type="text" placeholder="Search" />
-				<img src={search_icon} alt="search icon" />
+				<input ref={inputRef} type="text" placeholder="Search" required />
+				<img src={search_icon} alt="search icon" onClick={() => search(inputRef.current.value)} />
 			</div>
 
-			<img src={clear_icon} alt="weather-icon" className="weather-icon" />
-			<p className="temperature">{weatherData.tempurature}</p>
-			<p className="location">{weatherData.location}</p>
+			{
+				/* prettier-ignore */
+				weatherData ? <>
+					<img src={clear_icon} alt="weather-icon" className="weather-icon" />
+					<p className="temperature">{weatherData.tempurature}</p>
+					<p className="location">{weatherData.location}</p>
 
-			<div className="weather-data">
-				<div className="col">
-					<img src={humidity_icon} alt="humidity icon" />
-					<div>
-						<p>{weatherData.humidity}</p>
-						<span>Humidity</span>
+					<div className="weather-data">
+						<div className="col">
+							<img src={humidity_icon} alt="humidity icon" />
+							<div>
+								<p>{weatherData.humidity}</p>
+								<span>Humidity</span>
+							</div>
+						</div>
+						<div className="col">
+							<img src={wind_icon} alt="wind icon" />
+							<div>
+								<p>{weatherData.windSpeed}</p>
+								<span>Wind Speed</span>
+							</div>
+						</div>
 					</div>
-				</div>
-				<div className="col">
-					<img src={wind_icon} alt="wind icon" />
-					<div>
-						<p>{weatherData.windSpeed}</p>
-						<span>Wind Speed</span>
-					</div>
-				</div>
-			</div>
+				</> : <></>
+			}
 		</div>
 	);
 };
